@@ -1,0 +1,121 @@
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+
+# Učitaj podatke iz Excel fajla
+data = pd.read_excel('nba_rezultati.xlsx')
+
+# Pretpostavimo da je prva kolona 'Tim', a ostale kolone su utakmice
+teams = data['Tim']
+games_data = data.drop(columns=['Tim'])
+
+# Kreiraj izlaznu varijablu koja predstavlja konačni skor na kraju sezone
+# Za potrebe ovog primera, pretpostavićemo da je konačni skor broj pobeda + trenutni skor * 2
+final_scores = games_data.apply(lambda row: (row > 0).sum(), axis=1) * 2
+
+# Dodajemo ovu kolonu u naš DataFrame
+data['final_score'] = final_scores
+
+# Kreiraj ulazne (X) i izlazne (y) varijable
+X = games_data
+y = data['final_score']
+
+# Podeli podatke na trening i test set (ovde delimo ručno)
+X_train = X
+y_train = y
+
+# Definiši model - polinomijalna regresija
+degree = 2  # Možeš promeniti stepen polinoma
+model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+
+# Treniraj model
+model.fit(X_train, y_train)
+
+# Predvidi konačni rezultat
+predicted_final_scores = model.predict(X_train)
+
+# Dodaj predviđene konačne rezultate u DataFrame
+data['predicted_final_score'] = predicted_final_scores
+
+# Izračunaj broj pobeda na osnovu rezultata prvih 41 utakmica
+data['current_wins'] = games_data.apply(lambda row: (row > 0).sum(), axis=1)
+
+# Ispiši rezultate
+print(data[['Tim', 'current_wins', 'predicted_final_score']])
+
+# Sačuvaj rezultate u novi Excel fajl
+
+----------------------------------------------
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.pipeline import make_pipeline
+import matplotlib.pyplot as plt
+
+# Učitaj podatke iz Excel fajla
+data = pd.read_excel('nba_rezultati.xlsx')
+
+# Pretpostavimo da je prva kolona 'Tim', a ostale kolone su utakmice
+teams = data['Tim']
+games_data = data.drop(columns=['Tim'])
+
+# Kreiraj ulazne (x) i izlazne (y) varijable za utakmice
+x = np.arange(1, 42).reshape(-1, 1)  # x su brojevi utakmica od 1 do 41
+y = games_data.values  # y su rezultati utakmica
+
+# Definiši model - polinomijalna regresija
+degree = 2  # Možeš promeniti stepen polinoma
+model = make_pipeline(PolynomialFeatures(degree), LinearRegression())
+
+# Lista za čuvanje predikcija za sve timove
+predictions = []
+
+# Treniraj i predviđaj za svaki tim posebno
+for i in range(y.shape[0]):
+    y_team = y[i, :]
+    model.fit(x, y_team)
+    # Predikcija za sledećih 41 utakmica (od 42 do 82)
+    x_future = np.arange(42, 83).reshape(-1, 1)
+    y_future_pred = model.predict(x_future)
+    predictions.append(y_future_pred)
+
+# Konvertuj predikcije u DataFrame
+predictions = np.array(predictions)
+predicted_wins = np.sum(predictions > 0, axis=1)
+
+# Ukupan broj pobeda (trenutne pobede + predviđene pobede)
+current_wins = np.sum(y > 0, axis=1)
+total_wins = current_wins + predicted_wins
+
+# Dodaj trenutni broj pobeda, predviđene pobede i ukupan broj pobeda u DataFrame
+data['current_wins'] = current_wins
+data['predicted_wins'] = predicted_wins
+data['total_wins'] = total_wins
+
+# Ispiši rezultate
+print(data[['Tim', 'current_wins', 'predicted_wins', 'total_wins']])
+
+
+
+# Prikazivanje grafika za prvi tim kao primer
+plt.figure(figsize=(10, 6))
+plt.plot(np.arange(1, 42), y[0, :], 'bo-', label='Stvarni rezultati')
+plt.plot(np.arange(42, 83), predictions[0], 'ro-', label='Predviđeni rezultati')
+plt.xlabel('Utakmica')
+plt.ylabel('Rezultat')
+plt.title(f'Predikcija rezultata za tim {teams[0]}')
+plt.legend()
+plt.show()
+
+-----------------------------
+plt.figure(figsize=(10, 6))
+plt.plot(np.arange(1, 42), y[0, :], 'bo-', label='Stvarne pobede')
+plt.plot(np.arange(42, 83), predictions[0], 'ro-', label='Predvidjene pobede')
+plt.xlabel('Utakmica')
+plt.ylabel('Rezultat')
+plt.title(f'Predikcija rezultata za tim {teams[3]}')
+plt.legend()
+plt.show()
